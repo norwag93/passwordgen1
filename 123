@@ -1,0 +1,243 @@
+#property indicator_chart_window
+ 
+extern int    NumberOfDays = 100;        
+extern string periodA_begin   = "03:30"; 
+extern string periodA_end     = "09:55";   
+extern string periodB_end     = "20:00";
+extern int    Ryzyko          = 1; 
+extern bool   LiniaPolZakresu    = false;
+extern color  rectA_color        = DarkOrchid;
+extern bool   rectA_background   = false;
+extern bool   rectB1_background  = false;
+
+
+
+
+void init() {
+  DeleteObjects();
+}
+
+
+void deinit() {
+  DeleteObjects();
+return(0);
+}
+
+void DeleteObjects() {
+    ObjectsDeleteAll(0,OBJ_RECTANGLE);
+ return(0); 
+}
+
+
+void start() {
+  datetime dtTradeDate=TimeCurrent();
+
+  for (int i=0; i<NumberOfDays; i++) {
+  
+  
+    DrawObjects(dtTradeDate, "BoxPeriodA  " + TimeToStr(dtTradeDate,TIME_DATE), periodA_begin, periodA_end, periodA_end, rectA_color, 0,4, rectA_background);
+    
+    DrawObjects(dtTradeDate, "BoxPeriodB0  " + TimeToStr(dtTradeDate,TIME_DATE), periodA_begin, periodA_end, periodB_end, rectA_color, 0,5, rectB1_background);
+    DrawObjects(dtTradeDate, "BoxPeriodB1  " + TimeToStr(dtTradeDate,TIME_DATE), periodA_begin, periodA_end, periodB_end, rectA_color, 0,6, rectB1_background);
+
+    dtTradeDate=decrementTradeDate(dtTradeDate);
+    while (TimeDayOfWeek(dtTradeDate) > 5 || TimeDayOfWeek(dtTradeDate) < 1 ) dtTradeDate = decrementTradeDate(dtTradeDate);     // Removed Sundays from plots
+  }
+}
+
+//+------------------------------------------------------------------+
+//| Create Rectangles                                                |
+//+------------------------------------------------------------------+
+
+void DrawObjects(datetime dtTradeDate, string sObjName, string sTimeBegin, string sTimeEnd, string sTimeObjEnd, color cObjColor, int iOffSet, int iForm, bool background) {
+  datetime dtTimeBegin, dtTimeEnd, dtTimeObjEnd;
+  double   dPriceHigh,  dPriceLow;
+  int      iBarBegin,   iBarEnd;
+
+  dtTimeBegin = StrToTime(TimeToStr(dtTradeDate, TIME_DATE) + " " + sTimeBegin);
+  dtTimeEnd = StrToTime(TimeToStr(dtTradeDate, TIME_DATE) + " " + sTimeEnd);
+  dtTimeObjEnd = StrToTime(TimeToStr(dtTradeDate, TIME_DATE) + " " + sTimeObjEnd);
+      
+  iBarBegin = iBarShift(NULL, 0, dtTimeBegin)+1;                                    // added 1 to bar count to correct calculation for highest price for the period
+  iBarEnd = iBarShift(NULL, 0, dtTimeEnd)+1;                                        // added 1 to bar count to correct calculation for lowest price for the period 
+  dPriceHigh = High[Highest(NULL, 0, MODE_HIGH, (iBarBegin)-iBarEnd, iBarEnd)];
+  dPriceLow = Low [Lowest (NULL, 0, MODE_LOW , (iBarBegin)-iBarEnd, iBarEnd)];
+ 
+  ObjectCreate(sObjName, OBJ_RECTANGLE, 0, 0, 0, 0, 0);
+  
+//  ObjectSet(sObjName, OBJPROP_TIME1 , dtTimeBegin);
+//  ObjectSet(sObjName, OBJPROP_TIME2 , dtTimeObjEnd);
+  
+//---- High-Low Rectangle
+   if(iForm==1){  
+      ObjectSet(sObjName, OBJPROP_TIME1 , dtTimeBegin);
+      ObjectSet(sObjName, OBJPROP_TIME2 , dtTimeObjEnd);
+      ObjectSet(sObjName, OBJPROP_PRICE1, dPriceHigh);  
+      ObjectSet(sObjName, OBJPROP_PRICE2, dPriceLow);
+      ObjectSet(sObjName, OBJPROP_STYLE, STYLE_SOLID);
+      ObjectSet(sObjName, OBJPROP_COLOR, cObjColor);
+      ObjectSet(sObjName, OBJPROP_BACK, background);
+   }
+   
+//---- Upper Rectangle
+  if(iForm==2){
+      ObjectSet(sObjName, OBJPROP_TIME1 , dtTimeEnd);
+      ObjectSet(sObjName, OBJPROP_TIME2 , dtTimeObjEnd);
+      ObjectSet(sObjName, OBJPROP_PRICE1, dPriceHigh);
+      ObjectSet(sObjName, OBJPROP_PRICE2, dPriceHigh + iOffSet*Point);
+      ObjectSet(sObjName, OBJPROP_STYLE, STYLE_SOLID);
+      ObjectSet(sObjName, OBJPROP_COLOR, cObjColor);
+      ObjectSet(sObjName, OBJPROP_BACK, background);
+   }
+ 
+ //---- Lower Rectangle 
+  if(iForm==3){
+      ObjectSet(sObjName, OBJPROP_TIME1 , dtTimeEnd);
+      ObjectSet(sObjName, OBJPROP_TIME2 , dtTimeObjEnd);
+      ObjectSet(sObjName, OBJPROP_PRICE1, dPriceLow - iOffSet*Point);
+      ObjectSet(sObjName, OBJPROP_PRICE2, dPriceLow);
+      ObjectSet(sObjName, OBJPROP_STYLE, STYLE_SOLID);
+      ObjectSet(sObjName, OBJPROP_COLOR, cObjColor);
+      ObjectSet(sObjName, OBJPROP_BACK, background);
+   }
+
+//---- PeriodA Rectangle
+  if(iForm==4){
+      ObjectSet(sObjName, OBJPROP_TIME1 , dtTimeBegin);
+      ObjectSet(sObjName, OBJPROP_TIME2 , dtTimeEnd);
+      ObjectSet(sObjName, OBJPROP_PRICE1, dPriceHigh);
+      ObjectSet(sObjName, OBJPROP_PRICE2, dPriceLow);
+      ObjectSet(sObjName, OBJPROP_STYLE, STYLE_SOLID);
+      ObjectSet(sObjName, OBJPROP_COLOR, cObjColor);
+      ObjectSet(sObjName, OBJPROP_WIDTH, 0);
+      ObjectSet(sObjName, OBJPROP_BACK, background);
+     
+   }   
+//---- PeriodB Rectangle
+  if(iForm==5){
+      ObjectSet(sObjName, OBJPROP_TIME1 , dtTimeEnd);
+      ObjectSet(sObjName, OBJPROP_TIME2 , dtTimeObjEnd);
+      ObjectSet(sObjName, OBJPROP_PRICE1, dPriceHigh + (dPriceHigh - dPriceLow) + iOffSet*Point);
+      ObjectSet(sObjName, OBJPROP_PRICE2, dPriceHigh + iOffSet*Point);
+      ObjectSet(sObjName, OBJPROP_STYLE, STYLE_SOLID);
+      ObjectSet(sObjName, OBJPROP_COLOR, cObjColor);
+      ObjectSet(sObjName, OBJPROP_WIDTH, 0);
+      ObjectSet(sObjName, OBJPROP_BACK, background);
+      
+      
+      if (LiniaPolZakresu == true) {
+      ObjectCreate(sObjName+"5A", OBJ_RECTANGLE, 0, 0, 0, 0, 0);
+      ObjectSet(sObjName+"5A", OBJPROP_TIME1 , dtTimeEnd);
+      ObjectSet(sObjName+"5A", OBJPROP_TIME2 , dtTimeObjEnd);
+      ObjectSet(sObjName+"5A", OBJPROP_PRICE1, dPriceHigh + 0.5*(dPriceHigh - dPriceLow) + iOffSet*Point);
+      ObjectSet(sObjName+"5A", OBJPROP_PRICE2, dPriceHigh + iOffSet*Point);
+      ObjectSet(sObjName+"5A", OBJPROP_STYLE, STYLE_SOLID);
+      ObjectSet(sObjName+"5A", OBJPROP_COLOR, cObjColor);
+      ObjectSet(sObjName+"5A", OBJPROP_WIDTH, 0);
+      ObjectSet(sObjName+"5A", OBJPROP_BACK, background);
+      }
+      
+      // dodac labele z rangami
+      //DrawPeakPointValue(dPriceHigh,(dPriceHigh-dPriceLow),dtTimeBegin,10);
+      DrawPeakPointValue(dPriceHigh,NormalizeDouble(dPriceHigh-dPriceLow,5),
+      iBarShift(Symbol(),Period(),dtTimeBegin));
+   }      
+
+if(iForm==6){
+      ObjectSet(sObjName, OBJPROP_TIME1 , dtTimeEnd);
+      ObjectSet(sObjName, OBJPROP_TIME2 , dtTimeObjEnd);
+      ObjectSet(sObjName, OBJPROP_PRICE1, dPriceLow + iOffSet*Point);
+      ObjectSet(sObjName, OBJPROP_PRICE2, dPriceLow - (dPriceHigh-dPriceLow) - iOffSet*Point);
+      ObjectSet(sObjName, OBJPROP_STYLE, STYLE_SOLID);
+      ObjectSet(sObjName, OBJPROP_COLOR, cObjColor);
+      ObjectSet(sObjName, OBJPROP_WIDTH, 0);
+      ObjectSet(sObjName, OBJPROP_BACK, background);
+      
+      
+      
+      if (LiniaPolZakresu == true) {
+      ObjectCreate(sObjName+"6A", OBJ_RECTANGLE, 0, 0, 0, 0, 0);
+      ObjectSet(sObjName+"6A", OBJPROP_TIME1 , dtTimeEnd);
+      ObjectSet(sObjName+"6A", OBJPROP_TIME2 , dtTimeObjEnd);
+      ObjectSet(sObjName+"6A", OBJPROP_PRICE1, dPriceLow - 0.5*(dPriceHigh - dPriceLow) + iOffSet*Point);
+      ObjectSet(sObjName+"6A", OBJPROP_PRICE2, dPriceLow + iOffSet*Point);
+      ObjectSet(sObjName+"6A", OBJPROP_STYLE, STYLE_SOLID);
+      ObjectSet(sObjName+"6A", OBJPROP_COLOR, cObjColor);
+      ObjectSet(sObjName+"6A", OBJPROP_WIDTH, 0);
+      ObjectSet(sObjName+"6A", OBJPROP_BACK, background);
+      }
+      
+      
+   } 
+
+
+
+
+}
+
+//+------------------------------------------------------------------+
+//| Decrement Date to draw objects in the past                       |
+//+------------------------------------------------------------------+
+
+datetime decrementTradeDate (datetime dtTimeDate) {
+   int iTimeYear=TimeYear(dtTimeDate);
+   int iTimeMonth=TimeMonth(dtTimeDate);
+   int iTimeDay=TimeDay(dtTimeDate);
+   int iTimeHour=TimeHour(dtTimeDate);
+   int iTimeMinute=TimeMinute(dtTimeDate);
+
+   iTimeDay--;
+   if (iTimeDay==0) {
+     iTimeMonth--;
+     if (iTimeMonth==0) {
+       iTimeYear--;
+       iTimeMonth=12;
+     }
+    
+     // Thirty days hath September...  
+     if (iTimeMonth==4 || iTimeMonth==6 || iTimeMonth==9 || iTimeMonth==11) iTimeDay=30;
+     // ...all the rest have thirty-one...
+     if (iTimeMonth==1 || iTimeMonth==3 || iTimeMonth==5 || iTimeMonth==7 || iTimeMonth==8 || iTimeMonth==10 || iTimeMonth==12) iTimeDay=31;
+     // ...except...
+     if (iTimeMonth==2) if (MathMod(iTimeYear, 4)==0) iTimeDay=29; else iTimeDay=28;
+   }
+  return(StrToTime(iTimeYear + "." + iTimeMonth + "." + iTimeDay + " " + iTimeHour + ":" + iTimeMinute));
+}
+
+void DrawPeakPointValue(double peak, double cvol, int i)
+{
+      //double Ryzyko = 1;
+      int StopLoss = MathRound(cvol*1/Point/10);
+ 
+      double Lot = normalize_volume(AccountEquity()*Ryzyko/1000/StopLoss/MarketInfo(Symbol(), MODE_TICKVALUE));
+      
+      
+    }
+
+double normalize_volume(double lots)
+{
+  // Adjust trade volume to broker
+  double step   = MarketInfo(Symbol(), MODE_LOTSTEP);
+  double min    = MarketInfo(Symbol(), MODE_MINLOT);
+  double max    = MarketInfo(Symbol(), MODE_MAXLOT);
+  double result;
+  
+  if(max > 0)
+    lots = MathMin(lots, max);
+  if(step > 0)
+    result = MathFloor(lots/step)*step;
+  else
+    result = 0;
+  if(result < min)
+    if(min>0)
+      return(min);
+    else
+      return(lots);
+  else if(result > 0)
+    return(result);
+  else
+    return(lots);
+}
+
+//+------------------------------------------------------------------+
+
